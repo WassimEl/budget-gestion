@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mon Budget</title>
+<meta name="description" content="Répartis ton salaire en pourcentages pour tes objectifs d'épargne.">
+<style>
+:root{--bg:#f5f6fa;--card:#fff;--tx:#1b1d2a;--mut:#6b7086;--ac:#8b5cf6;--ok:#16a36a;--bad:#e5484d;--bd:#e3e5ef;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#13141c;--card:#1d1f2b;--tx:#eceef7;--mut:#9a9fb8;--bd:#2d3042}}
+:root[data-theme="dark"]{--bg:#13141c;--card:#1d1f2b;--tx:#eceef7;--mut:#9a9fb8;--bd:#2d3042}
+*{box-sizing:border-box}
+body{margin:0;background:color-mix(in srgb,var(--ac) 7%,var(--bg));color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+.top{display:flex;align-items:center;gap:8px;margin:4px 0 12px}
+.top h1{font-size:22px;margin:0;flex:1}
+.ib{flex:0;padding:8px 11px;background:var(--card);color:var(--tx);border:1px solid var(--bd)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+label,.lab{font-size:13px;color:var(--mut);display:block;margin-bottom:4px}
+input[type=number],input[type=text],textarea,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+button{border:0;border-radius:10px;padding:10px 12px;background:var(--ac);color:var(--on,#fff);font:inherit;cursor:pointer}
+button.g{background:var(--bd);color:var(--tx)}
+button.d{background:transparent;color:var(--bad);flex:0}
+.big{font-size:30px;font-weight:700}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.mut{color:var(--mut);font-size:13px}
+.bar{height:8px;background:var(--bd);border-radius:6px;overflow:hidden;margin:8px 0 4px}
+.bar>i{display:block;height:100%;background:var(--ac)}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.head b{flex:1}
+.pct{width:78px!important;flex:0!important}
+.sum div{display:flex;justify-content:space-between;padding:3px 0}
+.fx{margin-bottom:8px}.fx .a{flex:0 0 100px}
+.chk{display:flex;align-items:center;gap:10px;padding:6px 0}
+.chk input{width:22px;height:22px;flex:0}
+h2{font-size:16px;margin:14px 0 6px}
+#settings{display:none}
+.sw{flex:none;width:34px;height:34px;border-radius:50%;padding:0;border:3px solid transparent}
+.sw.on{border-color:var(--tx)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal .w{font-size:12px;color:var(--mut)}
+.cal .c{min-height:44px;border-radius:8px;border:1px solid var(--bd);padding:3px 1px;font-size:12px;cursor:pointer}
+.cal .c b{display:block;font-weight:500;color:var(--mut)}
+.cal .c.has{background:color-mix(in srgb,var(--ok) 18%,transparent);border-color:var(--ok)}
+.cal .c.neg{background:color-mix(in srgb,var(--bad) 18%,transparent);border-color:var(--bad)}
+.cal .c.sel{outline:2px solid var(--ac)}
+.cal .e{border:0;cursor:default}
+.cn{display:flex;align-items:center;gap:8px;margin-bottom:8px}.cn b{flex:1;text-align:center;text-transform:capitalize}.cn button{flex:0}
+</style>
+</head>
+<body>
+<main>
+<div class="top">
+  <h1>💰 Mon Budget</h1>
+  <button class="ib" id="undo" title="Annuler la dernière action">↶</button>
+  <button class="ib" id="eye" title="Masquer les montants">👁</button>
+  <button class="ib" id="gear" title="Paramètres">⚙️</button>
+</div>
+
+<div class="card" id="settings">
+  <h2 style="margin-top:0">Objectifs affichés</h2>
+  <div class="mut">Décoche un objectif pour le masquer. Son épargne est conservée.</div>
+  <div id="goalToggles"></div>
+
+  <h2>Confort</h2>
+  <div class="row" style="margin-bottom:8px">
+    <div><label>Arrondi des montants</label>
+      <select id="step"><option value="auto">Auto (10 € / 50 €)</option><option value="10">10 €</option><option value="50">50 €</option><option value="100">100 €</option><option value="1">À l'euro</option></select></div>
+    <div><label>Thème</label>
+      <select id="theme"><option value="auto">Auto</option><option value="light">Clair</option><option value="dark">Sombre</option></select></div>
+  </div>
+  <div class="lab">Couleur</div>
+  <div id="sw" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px"></div>
+  <div class="row">
+    <button class="g" id="resetSaved">Remettre l'épargne à 0</button>
+    <button class="g" id="resetAll">Tout réinitialiser</button>
+  </div>
+
+  <h2>Prompt pour une IA</h2>
+  <div class="mut">Génère un texte à coller dans un chat IA (Claude, ChatGPT…). Il contient tes objectifs, montants et durées pour obtenir une proposition de pourcentages.</div>
+  <label class="chk" style="font-size:15px;color:var(--tx)"><input type="checkbox" id="prSal" checked> Inclure mon salaire</label>
+  <div class="row"><button id="prGen">Générer le prompt</button><button class="g" id="prCopy">Copier</button></div>
+  <textarea id="pr" rows="8" placeholder="Le prompt apparaîtra ici" style="margin-top:8px"></textarea>
+
+  <h2>PC ↔ téléphone</h2>
+  <p class="mut" id="syncMsg">Pour changer d'appareil : copie ton code ici, colle-le sur l'autre appareil, puis « Importer ».</p>
+  <div class="row"><button class="g" id="copy">Copier mes données</button><button class="g" id="paste">Importer</button></div>
+  <textarea id="box" rows="2" placeholder="Colle ici le code copié depuis l'autre appareil" style="margin-top:8px"></textarea>
+</div>
+
+<div class="card">
+  <label>Salaire du mois (€)</label>
+  <input type="number" id="salary" inputmode="decimal" placeholder="ex. 2000">
+  <div style="height:12px"></div>
+  <div class="lab">Montants fixes (ex. : abonnement, assurance, loyer)</div>
+  <div id="fixedList"></div>
+  <button class="g" id="addFixed">+ Ajouter un montant fixe</button>
+</div>
+
+<div class="card sum" id="sum"></div>
+<div id="goals"></div>
+<div class="row" style="margin-bottom:12px">
+  <button class="g" id="addGoal">+ Ajouter un objectif</button>
+  <button id="deposit">Verser ce mois</button>
+</div>
+<div class="card" id="calCard"></div>
+</main>
+<div id="dlg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9;align-items:center;justify-content:center;padding:16px">
+  <div class="card" style="width:min(92vw,360px);margin:0"><div id="dm"></div>
+  <input id="di" type="text" style="margin-top:10px">
+  <div class="row" style="margin-top:12px"><button class="g" id="dn">Annuler</button><button id="dy">OK</button></div></div>
+</div>
+<div id="toast" style="display:none;position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:10"></div>
+<script>
+const KEY='monbudget_v1';
+const def=()=>({salary:0,t:0,step:'auto',fixeds:[],goals:[]});
+const $=id=>document.getElementById(id);
+const num=v=>{v=parseFloat(v);return isNaN(v)?0:v};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}};
+function norm(d){
+  if(!d.fixeds)d.fixeds=[{n:'Abonnement',a:d.fixed!=null?d.fixed:23}];
+  delete d.fixed;if(!d.step)d.step='auto';if(!d.log)d.log=[];if(!d.t)d.t=0;return d;
+}
+let S=def(),db=null,ref=null,timer=null,hist=[],hide=ls('mb_hide')==='1';
+try{const r=ls(KEY);if(r)S=JSON.parse(r)}catch(e){}
+S=norm(S);
+
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+function lg(g,v){if(v)S.log.push({d:today(),g:g.id,n:g.name,a:v})}
+function ask(msg,inp,def){return new Promise(res=>{
+  const d=$('dlg'),i=$('di');$('dm').textContent=msg;i.style.display=inp?'block':'none';i.value=def==null?'':def;d.style.display='flex';
+  if(inp)setTimeout(()=>i.focus(),50);
+  const done=v=>{d.style.display='none';$('dy').onclick=$('dn').onclick=i.onkeydown=null;res(v)};
+  $('dy').onclick=()=>done(inp?i.value:true);
+  $('dn').onclick=()=>done(inp?null:false);
+  i.onkeydown=e=>{if(e.key==='Enter')$('dy').click()};
+})}
+const confirmA=m=>ask(m,false),promptA=(m,d)=>ask(m,true,d);
+let nt=null;
+function note(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(nt);nt=setTimeout(()=>t.style.display='none',3000)}
+const eur=n=>hide?'*** €':Math.round(n).toLocaleString('fr-BE',{maximumFractionDigits:0})+' €';
+const fixedTotal=()=>S.fixeds.reduce((a,f)=>a+num(f.a),0);
+const base=()=>Math.max(0,S.salary-fixedTotal());
+function rnd(x){
+  const st=S.step==='auto'?(x>=100?50:10):+S.step;
+  return Math.round(x/st)*st;
+}
+const plan=g=>g.on?rnd(base()*g.pct/100):0;
+const amt=g=>Math.min(plan(g),Math.max(0,g.target-g.saved));
+const subAmt=g=>Math.min(plan(g),g.target,g.saved);
+
+function save(){
+  S.t=Date.now();
+  ls(KEY,JSON.stringify(S));
+  clearTimeout(timer);
+  timer=setTimeout(()=>{if(ref)ref.set({json:JSON.stringify(S),t:S.t}).catch(()=>{})},500);
+}
+function mut(fn){
+  hist.push(JSON.stringify(S));if(hist.length>30)hist.shift();
+  fn();save();renderAll();
+}
+const ACC=[['mauve','Mauve','#8b5cf6'],['lavande','Lavande','#9f7aea'],['violet','Violet','#6d28d9'],['prune','Prune','#86198f'],['orchidee','Orchidée','#c026d3'],['indigo','Indigo','#5b4bc4'],['rose','Rose','#ec4899'],['rouge','Rouge','#e5484d'],['orange','Orange','#f97316'],['or','Or','#d4a017'],['vert','Vert','#22a06b'],['turquoise','Turquoise','#14b8a6'],['bleu','Bleu','#3b82f6']];
+function applyAccent(){
+  const k=ls('mb_accent')||'mauve',a=ACC.find(x=>x[0]===k)||ACC[0],h=a[2],r=document.documentElement.style;
+  const c=[1,3,5].map(i=>parseInt(h.substr(i,2),16)),L=(0.299*c[0]+0.587*c[1]+0.114*c[2])/255;
+  r.setProperty('--ac',h);r.setProperty('--on',L>0.68?'#1b1d2a':'#fff');
+  $('sw').innerHTML=ACC.map(x=>'<button class="sw'+(x[0]===a[0]?' on':'')+'" data-k="'+x[0]+'" title="'+x[1]+'" style="background:'+x[2]+'"></button>').join('');
+}
+function applyTheme(){
+  const t=ls('mb_theme')||'auto',r=document.documentElement;
+  if(t==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',t);
+  $('theme').value=t;
+}
+
+function renderSum(){
+  const b=base();
+  const act=S.goals.filter(g=>g.on);
+  const totalPct=act.reduce((a,g)=>a+num(g.pct),0);
+  const saving=act.reduce((a,g)=>a+amt(g),0);
+  const left=b-saving;
+  $('sum').innerHTML=
+   `<div><span>Salaire</span><span>${eur(S.salary)}</span></div>
+    <div><span>Montants fixes</span><span>− ${eur(fixedTotal())}</span></div>
+    <div><span>Épargne (${totalPct}%)</span><span>− ${eur(saving)}</span></div>
+    <hr style="border:0;border-top:1px solid var(--bd)">
+    <div><span>Il te reste pour tes dépenses</span></div>
+    <div class="big ${left<0?'bad':'ok'}">${eur(left)}</div>
+    ${totalPct>100?'<div class="bad mut">⚠ Total des pourcentages supérieur à 100 %</div>':''}`;
+}
+function renderFixed(){
+  $('fixedList').innerHTML=(S.fixeds.length?'<div class="row fx" style="margin-bottom:2px"><div class="lab" style="margin:0">Nom</div><div class="lab a" style="margin:0">Montant (€)</div><span style="flex:0 0 42px"></span></div>':'')+S.fixeds.map((f,i)=>`<div class="row fx" data-i="${i}">
+    <input type="text" data-f="n" value="${esc(f.n)}">
+    <input type="${hide?'text':'number'}" class="a" data-f="a" value="${hide?'***':f.a}" ${hide?'readonly':''} placeholder="0" inputmode="decimal">
+    <button class="d" data-a="del">✕</button></div>`).join('');
+}
+function renderGoals(){
+  const vis=S.goals.map((g,i)=>[g,i]).filter(([g])=>g.on);
+  $('goals').innerHTML=vis.length?vis.map(([g,i])=>{
+    const a=amt(g),rest=Math.max(0,g.target-g.saved),p=g.target?Math.min(100,g.saved/g.target*100):0;
+    const est=a>0?Math.ceil(rest/a):null;
+    return `<div class="card goal" data-i="${i}">
+      <div class="head"><b>${esc(g.name)}</b>
+        <input type="number" class="pct" data-f="pct" value="${g.pct}" inputmode="decimal"> %
+        <button class="d" data-a="del">✕</button></div>
+      <div class="mut">Ce mois : ${eur(a)} · Objectif ${eur(g.target)} en ${g.months} mois</div>
+      <div class="bar"><i style="width:${p}%"></i></div>
+      <div class="mut">Épargné ${eur(g.saved)} · reste ${eur(rest)}${est!==null&&rest>0?` · ~${est} mois au rythme actuel`:''}</div>
+      <div class="row" style="margin-top:8px">
+        <button data-a="add">+ Ajouter ${eur(a)}</button>
+        <button class="g" data-a="sub">− Retirer ${eur(subAmt(g))}</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input type="${hide?'text':'number'}" data-f="target" value="${hide?'***':g.target}" ${hide?'readonly':''} inputmode="decimal" title="Objectif (€)">
+        <input type="number" data-f="months" value="${g.months}" inputmode="decimal" title="Durée (mois)">
+        <button class="g" data-a="setsaved">Corriger l'épargné</button>
+      </div></div>`}).join(''):'<div class="card mut">Aucun objectif affiché. Appuie sur « + Ajouter un objectif » (ou active-en un dans ⚙️).</div>';
+}
+function renderSettings(){
+  $('goalToggles').innerHTML=S.goals.map((g,i)=>`<label class="chk" style="font-size:16px;color:var(--tx)" data-i="${i}"><input type="checkbox" ${g.on?'checked':''}> ${esc(g.name)}</label>`).join('');
+  $('step').value=String(S.step);
+}
+let cal=(()=>{const d=new Date();return{y:d.getFullYear(),m:d.getMonth()}})(),sel=null;
+function renderCal(){
+  const {y,m}=cal,pre=y+'-'+String(m+1).padStart(2,'0')+'-';
+  const L=S.log.filter(e=>e.d.startsWith(pre));
+  const tot=L.reduce((a,e)=>a+e.a,0);
+  const by={};L.forEach(e=>by[e.d]=(by[e.d]||0)+e.a);
+  const off=(new Date(y,m,1).getDay()+6)%7,n=new Date(y,m+1,0).getDate();
+  let h='<div class="cn"><button class="g" data-nav="-1">‹</button><b>'+new Date(y,m,1).toLocaleDateString('fr-BE',{month:'long',year:'numeric'})+'</b><button class="g" data-nav="1">›</button></div>';
+  h+='<div class="mut" style="text-align:center;margin-bottom:8px">Mis de côté ce mois : <b class="'+(tot<0?'bad':'ok')+'">'+eur(tot)+'</b></div><div class="cal">';
+  'LMMJVSD'.split('').forEach(w=>h+='<div class="w">'+w+'</div>');
+  for(let i=0;i<off;i++)h+='<div class="c e"></div>';
+  for(let d=1;d<=n;d++){
+    const k=pre+String(d).padStart(2,'0'),v=by[k]||0;
+    h+='<div class="c'+(v>0?' has':v<0?' neg':'')+(sel===k?' sel':'')+'" data-d="'+k+'"><b>'+d+'</b>'+(v?(hide?'***':(v>0?'+':'')+Math.round(v)):'')+'</div>';
+  }
+  h+='</div>';
+  if(sel&&sel.startsWith(pre)){
+    const E=S.log.filter(e=>e.d===sel);
+    h+='<div style="margin-top:10px"><div class="lab">'+new Date(sel+'T00:00').toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'})+'</div>'+
+      (E.length?E.map(e=>'<div class="row" style="justify-content:space-between"><span>'+esc(e.n)+'</span><span class="'+(e.a<0?'bad':'ok')+'" style="text-align:right">'+(e.a>0?'+':'')+eur(e.a)+'</span></div>').join(''):'<div class="mut">Rien ce jour-là.</div>')+'</div>';
+  }
+  $('calCard').innerHTML=h;
+}
+function syncInputs(){const e=$('salary');e.type=hide?'text':'number';e.readOnly=hide;e.value=hide?'***':(S.salary||'')}
+function renderAll(){syncInputs();renderSum();renderFixed();renderGoals();renderSettings();renderCal()}
+
+$('salary').oninput=e=>{S.salary=num(e.target.value);save();renderSum();renderGoals()};
+$('fixedList').addEventListener('input',e=>{
+  const r=e.target.closest('.fx');if(!r)return;const f=e.target.dataset.f;
+  S.fixeds[r.dataset.i][f]=f==='a'?num(e.target.value):e.target.value;save();renderSum();renderGoals();
+});
+$('fixedList').addEventListener('click',e=>{
+  const r=e.target.closest('.fx');if(!r||e.target.dataset.a!=='del')return;
+  mut(()=>S.fixeds.splice(+r.dataset.i,1));
+});
+$('addFixed').onclick=()=>mut(()=>S.fixeds.push({n:'',a:0}));
+
+$('goals').addEventListener('change',e=>{
+  const c=e.target.closest('.goal');if(!c)return;const g=S.goals[c.dataset.i],f=e.target.dataset.f;
+  if(!['pct','target','months'].includes(f))return;
+  mut(()=>{g[f]=num(e.target.value)});
+});
+$('goals').addEventListener('click',async e=>{
+  const a=e.target.dataset.a,c=e.target.closest('.goal');if(!a||!c)return;
+  const i=+c.dataset.i,g=S.goals[i];
+  if(a==='del'){if(await confirmA('Supprimer « '+g.name+' » ?'))mut(()=>S.goals.splice(i,1))}
+  else if(a==='add')mut(()=>{const v=amt(g);g.saved+=v;lg(g,v)});
+  else if(a==='sub')mut(()=>{const v=subAmt(g);g.saved-=v;lg(g,-v)});
+  else if(a==='setsaved'){const v=await promptA('Montant déjà épargné pour '+g.name+' (€)',g.saved);if(v!==null)mut(()=>{const n=Math.max(0,Math.round(num(v)));lg(g,n-g.saved);g.saved=n})}
+});
+$('goalToggles').addEventListener('change',e=>{
+  const l=e.target.closest('.chk');if(!l)return;
+  mut(()=>{S.goals[l.dataset.i].on=e.target.checked});
+});
+$('addGoal').onclick=async()=>{
+  const name=await promptA('Nom de l\'objectif ?');if(!name)return;
+  const target=num(await promptA('Montant à atteindre (€) ?','500'));
+  const months=Math.max(1,num(await promptA('En combien de mois ?','6')));
+  const pct=num(await promptA('Pourcentage du salaire ?','10'));
+  mut(()=>S.goals.push({id:Date.now(),name,pct,on:true,target,months,saved:0}));
+};
+$('deposit').onclick=async()=>{
+  if(!base()){note('Entre d\'abord ton salaire.');return}
+  if(!S.goals.some(g=>amt(g)>0)){note('Rien à verser ce mois-ci.');return}
+  if(await confirmA('Ajouter les montants du mois à chaque objectif affiché ?'))mut(()=>S.goals.forEach(g=>{const v=amt(g);g.saved+=v;lg(g,v)}));
+};
+
+$('calCard').addEventListener('click',e=>{
+  const nv=e.target.closest('[data-nav]'),dc=e.target.closest('[data-d]');
+  if(nv){cal.m+=+nv.dataset.nav;if(cal.m<0){cal.m=11;cal.y--}if(cal.m>11){cal.m=0;cal.y++}sel=null;renderCal()}
+  else if(dc){sel=sel===dc.dataset.d?null:dc.dataset.d;renderCal()}
+});
+$('gear').onclick=()=>{const s=$('settings');s.style.display=s.style.display==='block'?'none':'block'};
+$('undo').onclick=()=>{const h=hist.pop();if(!h)return;S=norm(JSON.parse(h));save();renderAll()};
+$('eye').onclick=()=>{hide=!hide;ls('mb_hide',hide?'1':'0');$('eye').textContent=hide?'🙈':'👁';renderAll()};
+$('step').onchange=e=>mut(()=>{S.step=e.target.value});
+$('theme').onchange=e=>{ls('mb_theme',e.target.value);applyTheme()};
+$('resetSaved').onclick=async()=>{if(await confirmA('Remettre l\'épargne de tous les objectifs à 0 ?'))mut(()=>S.goals.forEach(g=>g.saved=0))};
+$('resetAll').onclick=async()=>{if(await confirmA('Tout réinitialiser (objectifs, montants fixes, épargne) ?'))mut(()=>{S=def()})};
+
+function buildPrompt(){
+  const f=n=>Math.round(n).toLocaleString('fr-BE',{maximumFractionDigits:0})+' €';
+  const G=S.goals.filter(g=>g.on),inc=$('prSal').checked&&S.salary>0;
+  const fx=S.fixeds.filter(x=>num(x.a)>0).map(x=>(x.n||'Montant fixe')+' '+f(num(x.a)));
+  let t='Tu es un conseiller en budget. Aide-moi à répartir mon salaire en pourcentages entre mes objectifs d\'épargne.\n\n';
+  if(inc)t+='Salaire du mois : '+f(S.salary)+' (il varie chaque mois, d\'où l\'intérêt des pourcentages)\n';
+  else t+='Mon salaire varie chaque mois et je ne te le donne pas : propose des pourcentages valables pour des salaires de 1 500 €, 2 000 € et 2 500 €.\n';
+  t+='Montants fixes déduits avant le calcul : '+(fx.length?fx.join(', ')+' (total '+f(fixedTotal())+')':'aucun')+'\n';
+  if(inc)t+='Salaire restant à répartir : '+f(base())+'\n';
+  t+='\nMes objectifs :\n';
+  let need=0;
+  if(!G.length)t+='(aucun objectif renseigné)\n';
+  G.forEach((g,i)=>{const r=Math.max(0,g.target-g.saved),m=Math.max(1,g.months),per=Math.ceil(r/m);need+=per;
+    t+=(i+1)+'. '+g.name+' : '+f(g.target)+' à atteindre en '+m+' mois (déjà épargné : '+f(g.saved)+', soit environ '+f(per)+' par mois)\n'});
+  if(G.length)t+='Total nécessaire par mois : environ '+f(need)+'\n';
+  t+='\nConsignes :\n- Propose un pourcentage du salaire (après montants fixes) pour chaque objectif, arrondi à 5 %.\n- Vérifie que le total ne dépasse pas 100 % et dis-moi ce qu\'il me reste pour mes dépenses perso (sorties, petits achats).\n- Si mon salaire ne suffit pas pour tout atteindre dans les délais, propose une solution (rallonger certaines durées ou prioriser) et indique le nombre de mois nécessaire.\n- Explique ton raisonnement en quelques lignes, puis termine par un tableau : Objectif | % | montant par mois.';
+  return t;
+}
+$('prGen').onclick=()=>{$('pr').value=buildPrompt()};
+$('prCopy').onclick=async()=>{
+  if(!$('pr').value)$('pr').value=buildPrompt();
+  try{await navigator.clipboard.writeText($('pr').value);note('Prompt copié ✔')}catch(e){$('pr').select();note('Copie le texte sélectionné')}
+};
+$('copy').onclick=async()=>{
+  const code=btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+  $('box').value=code;
+  try{await navigator.clipboard.writeText(code);$('syncMsg').textContent='Code copié. Colle-le sur l\'autre appareil, puis « Importer ».'}catch(e){$('box').select();$('syncMsg').textContent='Copie le code ci-dessous.'}
+};
+$('paste').onclick=()=>{
+  try{const d=JSON.parse(decodeURIComponent(escape(atob($('box').value.trim()))));
+    if(!d.goals)throw 0;mut(()=>{S=norm(d)});$('box').value='';$('syncMsg').textContent='Données importées ✔'}
+  catch(e){note('Code invalide.')}
+};
+
+$('eye').textContent=hide?'🙈':'👁';
+$('sw').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(b){ls('mb_accent',b.dataset.k);applyAccent()}});
+applyTheme();applyAccent();renderAll();
+
+(async()=>{
+  try{
+    if(!window.claude)return;
+    db=await claude.use('db');if(!db)return;
+    ref=db.doc('budget/state');
+    $('syncMsg').textContent='Synchro auto : ouvre ce lien sur ton téléphone avec le même compte Claude. Sinon utilise le code.';
+    ref.onSnapshot(snap=>{
+      if(!snap.exists)return save();
+      const d=snap.data();
+      if(d&&d.t>S.t){try{S=norm(JSON.parse(d.json));ls(KEY,JSON.stringify(S));
+        const a=document.activeElement;if(!a||a.tagName!=='INPUT')renderAll()}catch(e){}}
+    },()=>{});
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
